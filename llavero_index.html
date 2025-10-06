@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYFLOWXX</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Estilo para el contenedor de la escena 3D */
+        .scene {
+            perspective: 1000px;
+            width: 100%;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Contenedor del texto 3D que rotará */
+        .text-3d-container {
+            transform-style: preserve-3d;
+            animation: rotate3D 20s linear infinite;
+        }
+
+        /* Texto principal con efecto 3D a través de text-shadow */
+        .text-3d {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 900;
+            font-size: 6rem; /* Tamaño base para móvil */
+            color: #4ade80; /* Color principal verde */
+            position: relative;
+            text-shadow:
+                0 1px 0 #3ac171,
+                0 2px 0 #2ca862,
+                0 3px 0 #208f53,
+                0 4px 0 #157644,
+                0 5px 0 #0e5e35,
+                0 6px 1px rgba(0,0,0,.1),
+                0 0 5px rgba(0,0,0,.1),
+                0 1px 3px rgba(0,0,0,.3),
+                0 3px 5px rgba(0,0,0,.2),
+                0 5px 10px rgba(0,0,0,.25),
+                0 10px 10px rgba(0,0,0,.2),
+                0 20px 20px rgba(0,0,0,.15);
+        }
+        
+        /* Ajuste de tamaño para pantallas más grandes */
+        @media (min-width: 768px) {
+            .text-3d {
+                font-size: 8rem;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .text-3d {
+                font-size: 10rem;
+            }
+        }
+
+        /* Animación de rotación 3D */
+        @keyframes rotate3D {
+            from {
+                transform: rotateY(0deg);
+            }
+            to {
+                transform: rotateY(360deg);
+            }
+        }
+        
+        /* Efecto de pulso para el número */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                text-shadow: 0 0 10px #4ade80, 0 0 20px #4ade80, 0 0 30px #4ade80;
+            }
+            50% {
+                transform: scale(1.05);
+                text-shadow: 0 0 20px #4ade80, 0 0 30px #4ade80, 0 0 40px #4ade80;
+            }
+        }
+        
+        .number-display {
+            animation: pulse 2.5s infinite;
+        }
+
+        /* Efecto de fade-in para la carga inicial */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 1s ease-out forwards;
+        }
+        
+        /* Asignar delays a cada elemento para una entrada escalonada */
+        .fade-in-1 { animation-delay: 0.2s; opacity: 0; }
+        .fade-in-2 { animation-delay: 0.4s; opacity: 0; }
+        .fade-in-3 { animation-delay: 0.6s; opacity: 0; }
+        .fade-in-4 { animation-delay: 0.8s; opacity: 0; }
+        .fade-in-5 { animation-delay: 1.0s; opacity: 0; }
+
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4 font-[Poppins] overflow-x-hidden">
+
+    <div class="w-full max-w-4xl mx-auto flex flex-col items-center justify-center text-center space-y-12">
+        
+        <!-- Sección del Logo 3D -->
+        <header class="w-full flex flex-col items-center justify-center space-y-4 fade-in fade-in-1">
+            <div class="scene">
+                <div class="text-3d-container">
+                    <h1 class="text-3d">MYFLOWXX</h1>
+                </div>
+            </div>
+            <p class="text-lg md:text-xl text-gray-400 tracking-widest uppercase fade-in fade-in-2">
+                CREATED NOT FOR NPC´S, <span class="text-red-500 font-bold">LA ROPA ES TU TICKET.</span>
+            </p>
+        </header>
+
+        <!-- Sección del Premio -->
+        <main class="w-full flex flex-col items-center space-y-6 bg-gray-800/50 p-6 md:p-8 rounded-2xl border border-gray-700 fade-in fade-in-3">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-200">
+                PUEDES GANAR TU PREMIO CON EL SIGUIENTE NÚMERO
+            </h2>
+            <p class="text-sm text-gray-500">(SOLO ACCESO SI ESTÁS EN MESA)</p>
+            
+            <div id="number-container" class="w-48 h-48 bg-gray-900 rounded-full flex items-center justify-center border-4 border-green-500 shadow-lg shadow-green-500/20 fade-in fade-in-4">
+                <span id="number-display" class="text-7xl font-black text-green-400 number-display">
+                    ...
+                </span>
+            </div>
+        </main>
+        
+        <!-- Footer con el enlace -->
+        <footer class="fade-in fade-in-5">
+            <a href="https://myflowxx.com" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-green-400 transition-colors duration-300">
+                myflowxx.com
+            </a>
+        </footer>
+
+    </div>
+
+    <!-- Script de Firebase y lógica de números -->
+    <script type="module">
+        // Importaciones de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        // --- Elementos del DOM y constantes ---
+        const numberDisplay = document.getElementById('number-display');
+        const NUM_MAX = 40;
+
+        // --- Variables de entorno (inyectadas por la plataforma) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- Constantes de la lógica de negocio ---
+        const NUMBERS_KEY_LOCAL_STORAGE = `myflowxx_number_${appId}`;
+        const COLLECTION_PATH = `/artifacts/${appId}/public/data/numberDraw`;
+        const DOC_ID = 'state';
+        
+        // Variables globales de Firebase
+        let db, auth;
+
+        // --- Función principal para obtener el número ---
+        async function getUniqueNumber() {
+            // 1. Revisar si el usuario ya tiene un número en su dispositivo
+            const storedNumber = localStorage.getItem(NUMBERS_KEY_LOCAL_STORAGE);
+            if (storedNumber) {
+                numberDisplay.textContent = storedNumber;
+                console.log('Número recuperado de localStorage.');
+                return;
+            }
+
+            // 2. Autenticar al usuario
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                console.log('Autenticación anónima exitosa.');
+            } catch (error) {
+                console.error("Error de autenticación: ", error);
+                numberDisplay.textContent = 'AUTH';
+                return;
+            }
+
+            // 3. Obtener un número único de Firestore usando una transacción
+            const docRef = doc(db, COLLECTION_PATH, DOC_ID);
+            
+            try {
+                // Ejecutar una transacción para garantizar una asignación atómica
+                const uniqueNumber = await runTransaction(db, async (transaction) => {
+                    const sfDoc = await transaction.get(docRef);
+
+                    // Si el documento no existe, lo creamos dentro de la transacción con el primer número.
+                    if (!sfDoc.exists()) {
+                        const newNumber = Math.floor(Math.random() * (NUM_MAX + 1));
+                        transaction.set(docRef, { assigned: [newNumber] });
+                        return newNumber;
+                    }
+
+                    const assignedNumbers = sfDoc.data().assigned || [];
+                    if (assignedNumbers.length > NUM_MAX) {
+                        return 'FIN'; // Un valor especial para indicar que no hay más números
+                    }
+                    
+                    let newUniqueNumber = -1;
+                    let attempts = 0;
+                    
+                    // Generar un número que no esté en la lista de asignados
+                    while (newUniqueNumber === -1 && attempts < 100) {
+                        const randomNumber = Math.floor(Math.random() * (NUM_MAX + 1));
+                        if (!assignedNumbers.includes(randomNumber)) {
+                            newUniqueNumber = randomNumber;
+                        }
+                        attempts++;
+                    }
+
+                    if (newUniqueNumber !== -1) {
+                        const newAssignedList = [...assignedNumbers, newUniqueNumber];
+                        transaction.update(docRef, { assigned: newAssignedList });
+                        return newUniqueNumber;
+                    } else {
+                        return 'FULL'; // No se pudo encontrar un número
+                    }
+                });
+
+                // Procesar el resultado de la transacción
+                if (uniqueNumber === 'FIN') {
+                    numberDisplay.textContent = 'FIN';
+                    console.log('Todos los números han sido asignados.');
+                } else if (uniqueNumber === 'FULL') {
+                    numberDisplay.textContent = 'FULL';
+                    console.log('No se pudo encontrar un número único después de 100 intentos.');
+                } else if (typeof uniqueNumber === 'number') {
+                    // Éxito: Mostrar y guardar el número
+                    numberDisplay.textContent = uniqueNumber;
+                    localStorage.setItem(NUMBERS_KEY_LOCAL_STORAGE, uniqueNumber);
+                    console.log(`Número ${uniqueNumber} asignado y guardado.`);
+                }
+
+            } catch (error) {
+                console.error("Error en la transacción de Firestore: ", error);
+                numberDisplay.textContent = 'DB';
+            }
+        }
+        
+        // --- Función de inicialización que se ejecuta al cargar la página ---
+        function initializeAndRun() {
+            // 1. Validar la configuración de Firebase
+            if (!firebaseConfigString || firebaseConfigString === '{}') {
+                console.error("La configuración de Firebase es nula o está vacía. La aplicación no puede inicializarse.");
+                numberDisplay.textContent = 'CFG'; // Error de Configuración
+                return;
+            }
+
+            // 2. Intentar inicializar Firebase
+            try {
+                const firebaseConfig = JSON.parse(firebaseConfigString);
+                if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+                    throw new Error("La configuración de Firebase no es válida (faltan apiKey o projectId).");
+                }
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                console.log("Firebase inicializado correctamente.");
+                
+                // 3. Si la inicialización es exitosa, proceder a obtener el número
+                getUniqueNumber();
+
+            } catch (error) {
+                console.error("Error al inicializar Firebase:", error);
+                numberDisplay.textContent = 'ERR'; // Error de Inicialización general
+            }
+        }
+        
+        // Iniciar todo el proceso cuando la ventana se haya cargado
+        window.onload = initializeAndRun;
+
+    </script>
+</body>
+</html>
+
