@@ -96,12 +96,12 @@
 
         <!-- Slogans en la parte inferior -->
         <footer class="absolute bottom-5 left-0 right-0 text-center text-gray-400 text-xs md:text-sm space-y-2">
-            <p class="font-bold orbitron tracking-widest">created not for NPC´s</p>
+            <p class="font-bold orbitron tracking-widest">NOT FOR NPC´S, PARA PERSONAS QUE BUSCAN SER DIFERENTES.</p>
             <p class="font-bold glowing-text text-green-300 orbitron tracking-widest">LA ROPA ES TU TICKET...</p>
         </footer>
     </div>
 
-    <!-- Scripts para Three.js y lógica de la página -->
+    <!-- Scripts para Three.js, Firebase y lógica de la página -->
     <script type="importmap">
         {
             "imports": {
@@ -114,41 +114,64 @@
         import * as THREE from 'three';
         import { FontLoader } from 'three/addons/loaders/FontLoader.js';
         import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, runTransaction, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Lógica del número aleatorio ---
-        function getUniqueNumber() {
-            const userNumberKey = 'myflowxx_userNumber';
-            const usedNumbersKey = 'myflowxx_usedNumbers';
-            const maxNumber = 20;
+        // --- Configuración de Firebase ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'myflowxx-app-preview';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO", authDomain: "DEMO", projectId: "DEMO-PROJECT" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        setLogLevel('debug');
 
+        // --- Lógica del número aleatorio con Firestore ---
+        async function getUniqueNumber(userId) {
             const numberEl = document.getElementById('lucky-number');
             const messageEl = document.getElementById('message-display');
+            const maxNumber = 20;
 
-            let assignedNumber = localStorage.getItem(userNumberKey);
+            try {
+                const userNumberRef = doc(db, `artifacts/${appId}/users/${userId}/lottery/details`);
+                const usedNumbersRef = doc(db, `artifacts/${appId}/public/data/lotteryData/main`);
 
-            if (assignedNumber) {
-                numberEl.textContent = assignedNumber;
-                return;
+                const userDocSnap = await getDoc(userNumberRef);
+                if (userDocSnap.exists()) {
+                    numberEl.textContent = userDocSnap.data().number;
+                    return;
+                }
+
+                const newNumber = await runTransaction(db, async (transaction) => {
+                    const usedNumbersDoc = await transaction.get(usedNumbersRef);
+                    let usedNumbers = usedNumbersDoc.exists() ? usedNumbersDoc.data().numbers || [] : [];
+
+                    if (usedNumbers.length >= maxNumber) {
+                        throw new Error("All numbers assigned");
+                    }
+
+                    let generatedNumber;
+                    do {
+                        generatedNumber = Math.floor(Math.random() * maxNumber) + 1;
+                    } while (usedNumbers.includes(generatedNumber));
+
+                    const newUsedNumbers = [...usedNumbers, generatedNumber];
+                    transaction.set(usedNumbersRef, { numbers: newUsedNumbers });
+                    transaction.set(userNumberRef, { number: generatedNumber });
+
+                    return generatedNumber;
+                });
+                numberEl.textContent = newNumber;
+            } catch (error) {
+                console.error("Error getting unique number: ", error);
+                if (error.message === "All numbers assigned") {
+                    numberEl.textContent = "X";
+                    messageEl.textContent = "Todos los números han sido asignados.";
+                } else {
+                    numberEl.textContent = "!";
+                    messageEl.textContent = "Error al obtener número. Intenta de nuevo.";
+                }
             }
-
-            let usedNumbers = JSON.parse(localStorage.getItem(usedNumbersKey)) || [];
-
-            if (usedNumbers.length >= maxNumber) {
-                numberEl.textContent = "X";
-                messageEl.textContent = "Todos los números han sido asignados.";
-                return;
-            }
-
-            let newNumber;
-            do {
-                newNumber = Math.floor(Math.random() * maxNumber) + 1;
-            } while (usedNumbers.includes(newNumber));
-
-            usedNumbers.push(newNumber);
-            localStorage.setItem(usedNumbersKey, JSON.stringify(usedNumbers));
-            localStorage.setItem(userNumberKey, newNumber);
-
-            numberEl.textContent = newNumber;
         }
 
         // --- Lógica de partículas ---
@@ -174,80 +197,45 @@
 
         function initThreeJS() {
             const canvas = document.getElementById('three-canvas');
-            
-            // Escena
             scene = new THREE.Scene();
-            
-            // Cámara
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.z = 10;
-
-            // Renderer
             renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-
-            // Luces
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
-
-            const pointLight = new THREE.PointLight(0x4ade80, 2, 100); // Luz verde
+            const pointLight = new THREE.PointLight(0x4ade80, 2, 100);
             pointLight.position.set(5, 5, 5);
             scene.add(pointLight);
-            
-            const pointLightRed = new THREE.PointLight(0xf87171, 2, 100); // Luz roja
+            const pointLightRed = new THREE.PointLight(0xf87171, 2, 100);
             pointLightRed.position.set(-5, -5, 5);
             scene.add(pointLightRed);
 
-
-            // Cargar fuente y crear texto
             const fontLoader = new FontLoader();
-            fontLoader.load(
-                'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/fonts/helvetiker_bold.typeface.json',
-                (font) => {
-                    const textGeometry = new TextGeometry('myflowxx', {
-                        font: font,
-                        size: 1.5,
-                        height: 0.4,
-                        curveSegments: 12,
-                        bevelEnabled: true,
-                        bevelThickness: 0.03,
-                        bevelSize: 0.02,
-                        bevelOffset: 0,
-                        bevelSegments: 5
-                    });
-                    
-                    textGeometry.center(); // Centrar la geometría
-
-                    const textMaterial = new THREE.MeshStandardMaterial({
-                        color: 0xcccccc, // Un color base metálico
-                        metalness: 0.7,
-                        roughness: 0.2,
-                    });
-                    
-                    textMesh = new THREE.Mesh(textGeometry, textMaterial);
-                    scene.add(textMesh);
-                }
-            );
-
-            // Iniciar animación
+            fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.158.0/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+                const textGeometry = new TextGeometry('myflowxx', {
+                    font: font, size: 1.5, height: 0.4, curveSegments: 12,
+                    bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.02, bevelOffset: 0, bevelSegments: 5
+                });
+                textGeometry.center();
+                const textMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.7, roughness: 0.2 });
+                textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                scene.add(textMesh);
+            });
             animate();
         }
 
-        // Bucle de animación
         function animate() {
             requestAnimationFrame(animate);
-
             if (textMesh) {
-                textMesh.rotation.y += 0.005; // Rotación constante
+                textMesh.rotation.y += 0.005;
                 textMesh.rotation.x += 0.002;
             }
-
             renderer.render(scene, camera);
         }
 
-        // Manejar redimensión de la ventana
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -258,12 +246,38 @@
         window.addEventListener('resize', onWindowResize, false);
         
         document.addEventListener('DOMContentLoaded', () => {
-            getUniqueNumber();
+            // onAuthStateChanged es la única fuente de verdad para el estado de autenticación.
+            // Se activará cuando el usuario inicie sesión, ya sea anónimamente o mediante una sesión restaurada.
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // El usuario ha iniciado sesión, ahora podemos obtener su número de forma segura.
+                    getUniqueNumber(user.uid);
+                }
+            });
+
+            // Esta función autoejecutable solo se encarga de iniciar el proceso de inicio de sesión si es necesario.
+            (async () => {
+                try {
+                    // Si no hay un usuario actual, inicia sesión anónimamente.
+                    if (!auth.currentUser) {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                    // No es necesario un 'else', onAuthStateChanged se encargará de los usuarios que ya han iniciado sesión.
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                    document.getElementById('message-display').textContent = "Error de autenticación.";
+                }
+            })();
+
             createParticles();
             initThreeJS();
         });
-
     </script>
 
 </body>
 </html>
+
